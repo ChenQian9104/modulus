@@ -15,51 +15,53 @@
 # limitations under the License.
 
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 
-class DatasetTopoDiff(Dataset): 
-    
-    def __init__(self, topologies, stress, strain, load_im, constraints): 
-        
-        self.topologies = topologies 
-        self.constraints = constraints 
+class DatasetTopoDiff(Dataset):
+    def __init__(self, topologies, stress, strain, load_im, constraints):
+
+        self.topologies = topologies
+        self.constraints = constraints
         self.image_size = topologies.shape[1]
-        
+
         self.stress = stress
-        self.strain = strain 
+        self.strain = strain
         self.load_im = load_im
-    
-    def __len__(self): 
+
+    def __len__(self):
         return self.topologies.shape[0]
-    
-    def __getitem__(self, idx): 
-        
+
+    def __getitem__(self, idx):
+
         cons = self.constraints[idx]
-        
-        vol_frac = cons['VOL_FRAC']
-        
+
+        vol_frac = cons["VOL_FRAC"]
+
         cons = np.zeros((5, self.image_size, self.image_size))
-        
+
         cons[0] = self.stress[idx]
         cons[1] = self.strain[idx]
-        cons[2] = self.load_im[idx][:,:,0]
-        cons[3] = self.load_im[idx][:,:,1]
-        cons[4] = np.ones((self.image_size,self.image_size)) * vol_frac 
-        
-        return np.expand_dims(self.topologies[idx], 0) * 2 - 1, cons 
-    
-def load_data_topodiff(topologies, constraints, stress, strain, load_img, batch_size, deterministic=False): 
+        cons[2] = self.load_im[idx][:, :, 0]
+        cons[3] = self.load_im[idx][:, :, 1]
+        cons[4] = np.ones((self.image_size, self.image_size)) * vol_frac
+
+        return np.expand_dims(self.topologies[idx], 0) * 2 - 1, cons
+
+
+def load_data_topodiff(
+    topologies, constraints, stress, strain, load_img, batch_size, deterministic=False
+):
     dataset = DatasetTopoDiff(topologies, stress, strain, load_img, constraints)
-    
-    if deterministic: 
+
+    if deterministic:
         loader = DataLoader(
             dataset, batch_size=batch_size, shuffle=False, num_workers=1, drop_last=True
         )
-    else: 
+    else:
         loader = DataLoader(
             dataset, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=True
         )
-        
-    while True: 
+
+    while True:
         yield from loader

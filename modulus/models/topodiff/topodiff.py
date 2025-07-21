@@ -230,11 +230,11 @@ class TopoDiff(Module):
     def forward(self, x, cons, timesteps):
         # Mapping.
         emb = self.map_noise(timesteps)
-        
+
         emb = silu(self.map_layer0(emb))
         emb = self.map_layer1(emb)
         emb = silu(emb)
-        
+
         x = torch.cat([x, cons], dim=1)
         # Encoder.
         skips = []
@@ -250,60 +250,76 @@ class TopoDiff(Module):
         x = self.out_conv(silu(self.out_norm(x)))
         return x
 
-class UNetEncoder(Module): 
 
+class UNetEncoder(Module):
     def __init__(
-            self,
-            in_channels: int, 
-            out_channels: int,
-            model_channels: int = 128, 
-            num_res_blocks: int = 4,
-            channel_mult: tuple = (1, 1, 1, 1),
-            channel_mult_emb: int = 4,
-            attention_resolutions: tuple = (16, 8),
-            dropout=0,
-            output_prob=False):
+        self,
+        in_channels: int,
+        out_channels: int,
+        model_channels: int = 128,
+        num_res_blocks: int = 4,
+        channel_mult: tuple = (1, 1, 1, 1),
+        channel_mult_emb: int = 4,
+        attention_resolutions: tuple = (16, 8),
+        dropout=0,
+        output_prob=False,
+    ):
 
         super().__init__()
 
-        self.in_channels = in_channels 
-        self.out_channels = out_channels 
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.dropout = dropout
-        self.map_noise = PositionalEmbedding(num_channels = model_channels)
+        self.map_noise = PositionalEmbedding(num_channels=model_channels)
         self.output_prob = output_prob
 
-        ch = int(model_channels*channel_mult[0])
-        self.conv = Conv2d(in_channels=in_channels, out_channels=ch,kernel=3)
+        ch = int(model_channels * channel_mult[0])
+        self.conv = Conv2d(in_channels=in_channels, out_channels=ch, kernel=3)
 
-        emb_channels = model_channels * channel_mult_emb 
+        emb_channels = model_channels * channel_mult_emb
         self.time_embed = nn.Sequential(
-            Linear(in_features=model_channels, out_features=emb_channels), 
-            nn.SiLU(), 
-            Linear(in_features=emb_channels, out_features=emb_channels)
+            Linear(in_features=model_channels, out_features=emb_channels),
+            nn.SiLU(),
+            Linear(in_features=emb_channels, out_features=emb_channels),
         )
-        
+
         ds = 1
         self.encoder = nn.ModuleList()
-        for level, mult in enumerate(channel_mult): 
+        for level, mult in enumerate(channel_mult):
             attention = ds in attention_resolutions
-            for i in range(num_res_blocks): 
+            for i in range(num_res_blocks):
 
-                down = (i == num_res_blocks - 1 and level != len(channel_mult) - 1)
-                
-                layer = UNetBlock(in_channels=ch, 
-                                  out_channels=int(mult * model_channels),
-                                  emb_channels=emb_channels,
-                                  down=down,
-                                  attention=attention)
-                
+                down = i == num_res_blocks - 1 and level != len(channel_mult) - 1
+
+                layer = UNetBlock(
+                    in_channels=ch,
+                    out_channels=int(mult * model_channels),
+                    emb_channels=emb_channels,
+                    down=down,
+                    attention=attention,
+                )
+
                 self.encoder.append(layer)
                 ch = int(mult * model_channels)
-            ds *= 2   
+            ds *= 2
 
-        self.middle = nn.ModuleList([
-            UNetBlock(in_channels=ch, out_channels=ch, emb_channels=emb_channels,attention=True),
-            UNetBlock(in_channels=ch, out_channels=ch, emb_channels=emb_channels,attention=False)])
-        
+        self.middle = nn.ModuleList(
+            [
+                UNetBlock(
+                    in_channels=ch,
+                    out_channels=ch,
+                    emb_channels=emb_channels,
+                    attention=True,
+                ),
+                UNetBlock(
+                    in_channels=ch,
+                    out_channels=ch,
+                    emb_channels=emb_channels,
+                    attention=False,
+                ),
+            ]
+        )
+
         self.out = nn.Sequential(
             Linear(in_features=ch, out_features=2048),
             GroupNorm(num_channels=2048),
@@ -311,23 +327,23 @@ class UNetEncoder(Module):
             nn.Dropout(p=dropout),
             nn.Linear(in_features=2048, out_features=self.out_channels),
         )
-        
-        if self.output_prob: 
+
+        if self.output_prob:
             self.out.append(nn.Sigmoid())
 
-    def forward(self, x, time_steps): 
+    def forward(self, x, time_steps):
         """
-        param x: an [N x C x H x W] Tensor of inputs 
-        param time_steps: a 1-D batch of timesteps 
-        return: an [N x K] tensor of products 
-        """   
-        emb = self.time_embed(self.map_noise(time_steps)) 
-        
-        h = self.conv(x) 
+        param x: an [N x C x H x W] Tensor of inputs
+        param time_steps: a 1-D batch of timesteps
+        return: an [N x K] tensor of products
+        """
+        emb = self.time_embed(self.map_noise(time_steps))
 
-        for m in self.encoder: 
+        h = self.conv(x)
+
+        for m in self.encoder:
             h = m(h, emb)
 
         for m in self.middle:
             h = m(h, emb)
-        return self.out(h.mean(dim=(2,3)))
+        return self.out(h.mean(dim=(2, 3)))

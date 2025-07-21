@@ -1,3 +1,5 @@
+<!-- markdownlint-disable -->
+
 # TopoDiff
 We propose Topodiff, a conditional diffusion-model-based architecture to perform performance-aware and manufacturability-aware topology optimization that overcomes the issues of Generative Adversarial Networks (GANs) such as difficult to train, limited generalizability and neglecting manufacturability. Topodiff introduces a surrogate model-based guidance strategy that actively favors structures with low compliance and good manufacturability.
 - Link to the paper: [Link](https://arxiv.org/abs/2208.09591)

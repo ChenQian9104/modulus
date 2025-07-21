@@ -15,51 +15,57 @@
 # limitations under the License.
 
 import torch
-import torch.nn as nn 
+import torch.nn as nn
 import torch.nn.functional as F
 
-class Diffusion: 
 
-    def __init__(self, n_steps=1000, min_beta=10**-4, max_beta=0.02, device='cpu'): 
+class Diffusion:
+    def __init__(self, n_steps=1000, min_beta=10**-4, max_beta=0.02, device="cpu"):
 
-        self.n_steps = n_steps 
+        self.n_steps = n_steps
         self.device = device
 
         self.betas = torch.linspace(min_beta, max_beta, self.n_steps).to(device)
 
-        self.alphas = 1 - self.betas 
+        self.alphas = 1 - self.betas
 
         self.alpha_bars = torch.cumprod(self.alphas, 0).to(device)
-        
-        self.alpha_bars_prev = F.pad(self.alpha_bars[:-1], [1,0], 'constant', 0)
-        
-        self.posterior_variance = self.betas * (1. - self.alpha_bars_prev) / (1. - self.alpha_bars)
-        
-        self.loss = nn.MSELoss()
-    def q_sample(self, x0, t, noise=None): 
 
-        if noise is None: 
+        self.alpha_bars_prev = F.pad(self.alpha_bars[:-1], [1, 0], "constant", 0)
+
+        self.posterior_variance = (
+            self.betas * (1.0 - self.alpha_bars_prev) / (1.0 - self.alpha_bars)
+        )
+
+        self.loss = nn.MSELoss()
+
+    def q_sample(self, x0, t, noise=None):
+
+        if noise is None:
             noise = torch.rand_like(x0).to(self.device)
 
         alpha_bars = self.alpha_bars[t]
 
-        x = alpha_bars.sqrt()[:,None, None, None] * x0 + (1 - alpha_bars).sqrt()[:, None, None, None] * noise
+        x = (
+            alpha_bars.sqrt()[:, None, None, None] * x0
+            + (1 - alpha_bars).sqrt()[:, None, None, None] * noise
+        )
 
         return x
-    
-    def p_sample(self, model, xt, t, cons): 
 
-        return model(xt,  cons, t)
-    
-    def train_loss(self, model, x0, cons): 
+    def p_sample(self, model, xt, t, cons):
+
+        return model(xt, cons, t)
+
+    def train_loss(self, model, x0, cons):
 
         b, c, w, h = x0.shape
         noise = torch.randn_like(x0).to(self.device)
 
         t = torch.randint(0, self.n_steps, (b,)).to(self.device)
 
-        xt = self.q_sample(x0, t, noise) 
+        xt = self.q_sample(x0, t, noise)
 
-        pred_noise = self.p_sample(model, xt, t, cons) 
-        
+        pred_noise = self.p_sample(model, xt, t, cons)
+
         return self.loss(pred_noise, noise)
