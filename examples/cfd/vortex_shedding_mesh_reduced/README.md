@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD013 -->
+
 # Temporal attention model in Mesh-Reduced space for transient vortex shedding
 
 This example is an implementation of the paper "Predicting Physics in Mesh-reduced Space
@@ -22,8 +24,8 @@ with irregular triangle 2D meshes, each for 401 time steps with a time step size
 
 The model is auto-regressive. It first encodes the graph state into a latent vector
 via a Graph
-Nueral Network. Then a multi-head temporal model takes the initial condition tokens
-and pysical paramerters
+Neural Network. Then a multi-head temporal model takes the initial condition tokens
+and physical parameters
 as the input and predicts the solution for the following sequence in the latent space
 just like a language model.
 
@@ -47,20 +49,21 @@ The encoder and decoder consist of two hidden layers. Batch size per GPU is set 
 for the encoding-decoding process.
 Mean aggregation is used in the processor for message aggregation. A learning rate of
 0.0001 is used, decaying
-exponentially with a rate of 0.9999991. Traing epochs is set as 300.
+exponentially with a rate of 0.9999991. Training epochs is set as 300.
 
 For the multi-head attention temporal model, the dimension for each token is
-$3 \times 256 = 768$. The hidden dimension usded in
+$3 \times 256 = 768$. The hidden dimension used in
 the temporal model is $4 \times 768 = 4072$. The number of head is 8. Batch size
-per GPU is set to 10 for the sequence model training. Traing epochs is set as 200000.
+per GPU is set to 10 for the sequence model training. Training epochs is set as 200000.
 
 ## Getting Started
 
 To download the data , run
 
 ```bash
-cd dataset
-sh TODO: need a shell to download the raw dataset from a cloud storage.
+wget --content-disposition https://api.ngc.nvidia.com/v2/resources/nvidia/modulus/modulus_datasets_cylinder-flow/versions/v1/zip -O modulus_datasets_cylinder-flow_v1.zip
+unzip modulus_datasets_cylinder-flow_v1.zip
+unzip dataset.zip
 ```
 
 This example requires the `torch-scatter` and  `torch-cluster` library for the

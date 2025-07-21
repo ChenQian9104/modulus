@@ -26,7 +26,7 @@ convert-markdown-to-rst:
 		mkdir -p "examples/$$(dirname {})"; \
 		pandoc "{}" -o "examples/$$(dirname {})/$$(basename -s .md {}).rst"; \
 		sed -i ":a; /:alt:/ { N; s/\n   / /; ta }" "examples/$$(dirname {})/$$(basename -s .md {}).rst"; \
-		sed -i "s|.. figure:: ../../../docs/img|.. figure:: ../../../img|g" "examples/$$(dirname {})/$$(basename -s .md {}).rst" \
+		sed -i "s|\(\(\.\.\/\)\+\)docs/img|\1img|g" "examples/$$(dirname {})/$$(basename -s .md {}).rst" \
 	' \;
 
 html: convert-markdown-to-rst
@@ -38,7 +38,7 @@ package_docs:
 	apt-get update && apt-get install -y zip unzip
 	rm -rf deeplearning/
 	mkdir deeplearning
-	mkdir deeplearning/modulus
-	mkdir deeplearning/modulus/modulus-core
-	cp -r _build/html/* deeplearning/modulus/modulus-core/
+	mkdir deeplearning/physicsnemo
+	mkdir deeplearning/physicsnemo/physicsnemo-core
+	cp -r _build/html/* deeplearning/physicsnemo/physicsnemo-core/
 	zip -r deeplearning.zip deeplearning

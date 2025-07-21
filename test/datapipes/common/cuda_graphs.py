@@ -19,7 +19,7 @@ from typing import Callable, Tuple, Union
 
 import torch
 
-import modulus
+import physicsnemo
 
 Tensor = torch.Tensor
 logger = logging.getLogger("__name__")
@@ -59,17 +59,17 @@ class MiniNetwork(torch.nn.Module):
 
 
 def check_cuda_graphs(
-    datapipe: "modulus.Datapipe",
+    datapipe: "physicsnemo.Datapipe",
     input_fn: Union[Callable, None] = None,
     iterations: int = 5,
     warmup_length: int = 3,
 ) -> bool:
-    """Tests if a datapipe is compatable with cuda graphs
+    """Tests if a datapipe is compatible with cuda graphs
 
     Parameters
     ----------
-    datapipe : modulus.Datapipe
-        Modulus data pipe to test
+    datapipe : physicsnemo.Datapipe
+        PhysicsNeMo data pipe to test
     input_fn : Union[Callable, None], optional
         Input pre-processing function to produce a tuple of tensors for model inputs, by default None
     iterations : int, optional
@@ -89,7 +89,7 @@ def check_cuda_graphs(
     one should use the `input_fn` to preprocess a batch to that form.
     """
     if not datapipe.meta.cuda_graphs:
-        logger.warn("Datapipe does not support cuda graphs, skipping")
+        logger.warning("Datapipe does not support cuda graphs, skipping")
         return True
 
     model = MiniNetwork().cuda()

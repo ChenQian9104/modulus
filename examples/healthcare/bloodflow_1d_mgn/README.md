@@ -5,6 +5,11 @@ MeshGraphNet presented in the paper [Learning Reduced-Order Models for Cardiovas
 Simulations with Graph Neural Networks](https://arxiv.org/abs/2303.07310)
 (Pegolotti et al, 2023).
 
+## Contributor
+
+The main contributor for this work is Luca Pegolotti who was part of the
+Cardiovascular Biomechanics Computation Lab at Stanford University.
+
 ## Problem overview
 
 Three-dimensional simulations of the Navier-Stokes equations are the gold standard
@@ -76,6 +81,15 @@ and decoder. The results in the original paper were obtained by using 64 neurons
 in the hiddenl layers of each part of the network, and 16 neurons for the output
 layers of encoder and processor. This slight change in architecture does not
 influences the performance of the network dramatically.
+
+## Prerequisites
+
+Install the requirements using:
+
+```bash
+pip install -r requirements.txt
+pip install dgl -f https://data.dgl.ai/wheels/torch-2.4/cu124/repo.html --no-deps
+```
 
 ## Getting Started
 

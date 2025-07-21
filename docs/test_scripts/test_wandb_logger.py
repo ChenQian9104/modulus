@@ -1,11 +1,12 @@
 # [imports]
 import torch
 
-import modulus
-from modulus.datapipes.benchmarks.darcy import Darcy2D
-from modulus.launch.logging import LaunchLogger, PythonLogger, initialize_wandb
-from modulus.metrics.general.mse import mse
-from modulus.models.fno.fno import FNO
+import physicsnemo
+from physicsnemo.datapipes.benchmarks.darcy import Darcy2D
+from physicsnemo.launch.logging import LaunchLogger, PythonLogger
+from physicsnemo.launch.logging.wandb import initialize_wandb
+from physicsnemo.metrics.general.mse import mse
+from physicsnemo.models.fno.fno import FNO
 
 # [imports]
 
@@ -39,9 +40,9 @@ logger = PythonLogger("main")  # General python logger
 
 # Initialize the MLFlow logger
 initialize_wandb(
-    project="Modulus Tutorials",
-    name="Simple Modulus Tutorials",
-    entity="Modulus MLFLow Tutorial",
+    project="PhysicsNeMo Tutorials",
+    name="Simple PhysicsNeMo Tutorials",
+    entity="PhysicsNeMo MLFLow Tutorial",
     mode="offline",
 )
 LaunchLogger.initialize(use_wandb=True)
@@ -50,15 +51,16 @@ LaunchLogger.initialize(use_wandb=True)
 logger.info("Starting Training!")
 
 # we will setup the training to run for 20 epochs each epoch running for 10 iterations
+dataloader = iter(dataloader)
 for i in range(20):
     # wrap the epoch in launch logger to control frequency of output for console logs
     with LaunchLogger("train", epoch=i) as launchlog:
         # this would be iterations through different batches
         for _ in range(10):
-            batch = next(iter(dataloader))
-            true = batch["darcy"]
+            batch = next(dataloader)
+            truth = batch["darcy"]
             pred = model(batch["permeability"])
-            loss = mse(pred, true)
+            loss = mse(pred, truth)
             loss.backward()
             optimizer.step()
             scheduler.step()

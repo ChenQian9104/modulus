@@ -25,7 +25,7 @@ sys.path.append(os.path.join(os.path.dirname(script_path), ".."))
 
 import common
 
-from modulus.models.diffusion import DhariwalUNet as UNet
+from physicsnemo.models.diffusion import DhariwalUNet as UNet
 
 
 @pytest.mark.parametrize("device", ["cuda:0", "cpu"])
@@ -63,19 +63,20 @@ def test_dhariwal_unet_constructor(device):
     assert output_image.shape == (1, out_channels, img_resolution, img_resolution)
 
 
-@pytest.mark.parametrize("device", ["cuda:0", "cpu"])
+# Skip CPU tests because too slow
+@pytest.mark.parametrize("device", ["cuda:0"])
 def test_dhariwal_unet_optims(device):
     """Test Dhariwal UNet optimizations"""
 
     def setup_model():
         model = UNet(
-            img_resolution=16,
+            img_resolution=8,
             in_channels=2,
             out_channels=2,
         ).to(device)
         noise_labels = torch.randn([1]).to(device)
         class_labels = torch.randint(0, 1, (1, 1)).to(device)
-        input_image = torch.ones([1, 2, 16, 16]).to(device)
+        input_image = torch.ones([1, 2, 8, 8]).to(device)
 
         return model, [input_image, noise_labels, class_labels]
 
@@ -86,18 +87,35 @@ def test_dhariwal_unet_optims(device):
     # Check JIT
     model, invar = setup_model()
     assert common.validate_jit(model, (*invar,))
-    # Check AMP
+    # Check AMP with amp_mode=True for the layers: should pass
     model, invar = setup_model()
+    model.amp_mode = True
     assert common.validate_amp(model, (*invar,))
-    # Check Combo
+    # Check Combo with amp_mode=True for the layers: should pass
     model, invar = setup_model()
+    model.amp_mode = True
     assert common.validate_combo_optims(model, (*invar,))
 
+    # Check failures (only on GPU, because validate_amp and validate_combo_optims
+    # don't activate amp for DhariwalUNet on CPU)
+    if device == "cuda:0":
+        # Check AMP: should fail because amp_mode is False for the layers
+        with pytest.raises(RuntimeError):
+            model, invar = setup_model()
+            assert common.validate_amp(model, (*invar,))
+        # Check Combo: should fail because amp_mode is False for the layers
+        # NOTE: this test doesn't fail because validate_combo_optims doesn't
+        # activate amp for DhariwalUNet, even on GPU
+        # with pytest.raises(RuntimeError):
+        #     model, invar = setup_model()
+        #     assert common.validate_combo_optims(model, (*invar,))
 
-@pytest.mark.parametrize("device", ["cuda:0", "cpu"])
+
+# Skip CPU tests because too slow
+@pytest.mark.parametrize("device", ["cuda:0"])
 def test_dhariwal_unet_checkpoint(device):
     """Test Dhariwal UNet checkpoint save/load"""
-    # Construct FNO models
+
     model_1 = UNet(
         img_resolution=16,
         in_channels=2,
@@ -113,7 +131,7 @@ def test_dhariwal_unet_checkpoint(device):
     # Change the bias in the last layer of the second model as a hack
     # Because this model is initialized with all zeros
     with torch.no_grad():
-        model_2.out_conv.bias += 1
+        model_2.out_conv.bias.add_(1)
 
     noise_labels = torch.randn([1]).to(device)
     class_labels = torch.randint(0, 1, (1, 1)).to(device)

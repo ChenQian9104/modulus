@@ -6,24 +6,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.0a0] - 2024-11-XX
+## [1.2.0a0] - 2025-08-XX
 
 ### Added
 
-- Graph Transformer processor for GraphCast/GenCast.
-- Utility to generate STL from Signed Distance Field.
-- Metrics for CAE and CFD domain such as integrals, drag, and turbulence invariances and
-  spectrum.
-- Added gradient clipping to StaticCapture utilities.
-- Bistride Multiscale MeshGraphNet example.
-- FIGConvUNet model and example.
-- TopoDiff model and example. 
+- Improved documentation for diffusion models and diffusion utils.
+- Safe API to override `__init__`'s arguments saved in checkpoint file with
+  `Module.from_checkpoint("chkpt.mdlus", override_args=set(...))`.
+- PyTorch Geometric MeshGraphNet backend.
+- Functionality in DoMINO to take arbitrary number of `scalar` or `vector`
+  global parameters and encode them using `class ParameterModel`
+  - TopoDiff model and example. 
 
 ### Changed
 
-- Refactored CorrDiff training recipe for improved usability
-- Fixed timezone calculation in datapipe cosine zenith utility.
-- Refactored EDMPrecondSRV2 preconditioner and fixed the bug related to the metadata
+- Diffusion utils: `physicsnemo.utils.generative` renamed into `physicsnemo.utils.diffusion`
+- Diffusion models: in CorrDiff model wrappers (`EDMPrecondSuperResolution` and
+  `UNet`), the arguments `profile_mode` and `amp_mode` cannot be overriden by
+  `from_checkpoint`. They are now properties that can be dynamically changed
+  *after* the model instantiation with, for example, `model.amp_mode = True`
+  and `model.profile_mode = False`.
+- Updated healpix data module to use correct `DistributedSampler` target for
+  test data loader
+- Existing DGL-based vortex shedding example has been renamed to `vortex_shedding_mgn_dgl`.
+  Added new `vortex_shedding_mgn` example that uses PyTorch Geometric instead.
+- HEALPixLayer can now use earth2grid HEALPix padding ops, if desired
+- Migrated Vortex Shedding Reduced Mesh example to PyTorch Geometric.
+- CorrDiff example: fixed bugs when training regression `UNet`.
+- Diffusion models: fixed bugs related to gradient checkpointing on non-square
+  images.
+- Diffusion models: created a separate class `Attention` for clarity and
+  modularity. Updated `UNetBlock` accordingly to use the `Attention` class
+  instead of custom attention logic. This will update the model architecture
+  for `SongUNet`-based diffusion models. Changes are not BC-breaking and are
+  transparent to the user.
+- :warning: **BC-breaking:** refactored the automatic mixed precision (AMP) API in layers
+  and models defined in `physicsnemo/models/diffusion/` for improved usability.
+  Note: it is now, not only possible, but *required* to explicitly set
+  `model.amp_mode = True` in order to use the model in a `torch.autocast`
+  clause. This applies to all `SongUNet`-based models.
+- Diffusion models: fixed and improved API to enable fp16 forward pass in
+  `UNet` and `EDMPrecondSuperResolution` model wrappers; fp16 forward pass can
+  now be toggled/untoggled by setting `model.use_fp16 = True`.
+- Diffusion models: improved API for Apex group norm. `SongUNet`-based models
+  will automatically perform conversion of the input tensors to
+  `torch.channels_last` memory format when `model.use_apex_gn` is `True`. New
+  warnings are raised when attempting to use Apex group norm on CPU.
+- Diffusion utils: systematic compilation of patching operations in `stochastic_sampler`
+  for improved performance.
 
 ### Deprecated
 
@@ -34,6 +64,139 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 ### Dependencies
+
+## [1.1.1] - 2025-06-16
+
+### Fixed
+
+- Fixed an inadvertent change to the deterministic sampler 2nd order correction
+
+## [1.1.0] - 2025-06-05
+
+### Added
+
+- Added ReGen score-based data assimilation example
+- General purpose patching API for patch-based diffusion
+- New positional embedding selection strategy for CorrDiff SongUNet models
+- Added Multi-Storage Client to allow checkpointing to/from Object Storage
+- Added a new aerodynamics example using DoMINO to compute design sensitivities
+  (e.g., drag adjoint) with respect to underlying input geometry.
+
+### Changed
+
+- Simplified CorrDiff config files, updated default values
+- Refactored CorrDiff losses and samplers to use the patching API
+- Support for non-square images and patches in patch-based diffusion
+- ERA5 download example updated to use current file format convention and
+  restricts global statistics computation to the training set
+- Support for training custom StormCast models and various other improvements for StormCast
+- Updated CorrDiff training code to support multiple patch iterations to amortize
+  regression cost and usage of `torch.compile`
+- Refactored `physicsnemo/models/diffusion/layers.py` to optimize data type
+  casting workflow, avoiding unnecessary casting under autocast mode
+- Refactored Conv2d to enable fusion of conv2d with bias addition
+- Refactored GroupNorm, UNetBlock, SongUNet, SongUNetPosEmbd to support usage of
+  Apex GroupNorm, fusion of activation with GroupNorm, and AMP workflow.
+- Updated SongUNetPosEmbd to avoid unnecessary HtoD Memcpy of `pos_embd`
+- Updated `from_checkpoint` to accommodate conversion between Apex optimized ckp
+  and non-optimized ckp
+- Refactored CorrDiff NVTX annotation workflow to be configurable
+- Refactored `ResidualLoss` to support patch-accumlating training for
+  amortizing regression costs
+- Explicit handling of Warp device for ball query and sdf
+- Merged SongUNetPosLtEmb with SongUNetPosEmb, add support for batch>1
+- Add lead time embedding support for `positional_embedding_selector`. Enable
+arbitrary positioning of probabilistic variables
+- Enable lead time aware regression without CE loss
+- Bumped minimum PyTorch version from 2.0.0 to 2.4.0, to minimize
+  support surface for `physicsnemo.distributed` functionality.
+
+### Dependencies
+
+- Made `nvidia.dali` an optional dependency
+
+## [1.0.1] - 2025-03-25
+
+### Added
+
+- Added version checks to ensure compatibility with older PyTorch for distributed
+  utilities and ShardTensor
+
+### Fixed
+
+- `EntryPoint` error that occured during physicsnemo checkpoint loading
+
+## [1.0.0] - 2025-03-18
+
+### Added
+
+- DoMINO model architecture, datapipe and training recipe
+- Added matrix decomposition scheme to improve graph partitioning
+- DrivAerML dataset support in FIGConvNet example.
+- Retraining recipe for DoMINO from a pretrained model checkpoint
+- Prototype support for domain parallelism of using ShardTensor (new).
+- Enable DeviceMesh initialization via DistributedManager.
+- Added Datacenter CFD use case.
+- Add leave-in profiling utilities to physicsnemo, to easily enable torch/python/nsight
+  profiling in all aspects of the codebase.
+
+### Changed
+
+- Refactored StormCast training example
+- Enhancements and bug fixes to DoMINO model and training example
+- Enhancement to parameterize DoMINO model with inlet velocity
+- Moved non-dimensionaliztion out of domino datapipe to datapipe in domino example
+- Updated utils in `physicsnemo.launch.logging` to avoid unnecessary `wandb` and `mlflow`
+  imports
+- Moved to experiment-based Hydra config in Lagrangian-MGN example
+- Make data caching optional in `MeshDatapipe`
+- The use of older `importlib_metadata` library is removed
+
+### Deprecated
+
+- ProcessGroupConfig is tagged for future deprecation in favor of DeviceMesh.
+
+### Fixed
+
+- Update pytests to skip when the required dependencies are not present
+- Bug in data processing script in domino training example
+- Fixed NCCL_ASYNC_ERROR_HANDLING deprecation warning
+
+### Dependencies
+
+- Remove the numpy dependency upper bound
+- Moved pytz and nvtx to optional
+- Update the base image for the Dockerfile
+- Introduce Multi-Storage Client (MSC) as an optional dependency.
+- Introduce `wrapt` as an optional dependency, needed when using
+  ShardTensor's automatic domain parallelism
+
+## [0.9.0] - 2024-12-04
+
+### Added
+
+- Graph Transformer processor for GraphCast/GenCast.
+- Utility to generate STL from Signed Distance Field.
+- Metrics for CAE and CFD domain such as integrals, drag, and turbulence invariances and
+  spectrum.
+- Added gradient clipping to StaticCapture utilities.
+- Bistride Multiscale MeshGraphNet example.
+- FIGConvUNet model and example.
+- The Transolver model.
+- The XAeroNet model.
+- Incoporated CorrDiff-GEFS-HRRR model into CorrDiff, with lead-time aware SongUNet and
+  cross entropy loss.
+- Option to offload checkpoints to further reduce memory usage
+- Added StormCast model training and simple inference to examples
+- Multi-scale geometry features for DoMINO model.
+
+### Changed
+
+- Refactored CorrDiff training recipe for improved usability
+- Fixed timezone calculation in datapipe cosine zenith utility.
+- Refactored EDMPrecondSRV2 preconditioner and fixed the bug related to the metadata
+- Extended the checkpointing utility to store metadata.
+- Corrected missing export of loggin function used by transolver model
 
 ## [0.8.0] - 2024-09-24
 
@@ -79,8 +242,8 @@ Shallow-Water-Equation example.
 
 ### Changed
 
-- Raise `ModulusUndefinedGroupError` when querying undefined process groups
-- Changed Indexing error in `examples/cfd/swe_nonlinear_pino` for `modulus` loss function
+- Raise `PhysicsNeMoUndefinedGroupError` when querying undefined process groups
+- Changed Indexing error in `examples/cfd/swe_nonlinear_pino` for `physicsnemo` loss function
 - Safeguarding against uninitialized usage of `DistributedManager`
 
 ### Removed
@@ -109,7 +272,7 @@ intended for distributed message-passing.
 - Performance optimizations to CorrDiff.
 - Physics-Informed Nonlinear Shallow Water Equations example.
 - Warp neighbor search routine with a minimal example.
-- Strict option for loading Modulus checkpoints.
+- Strict option for loading PhysicsNeMo checkpoints.
 - Regression only or diffusion only inference for CorrDiff.
 - Support for organization level model files on NGC file system
 - Physics-Informed Magnetohydrodynamics example.
@@ -122,7 +285,7 @@ intended for distributed message-passing.
 
 ### Deprecated
 
-- `modulus.models.diffusion.preconditioning.EDMPrecondSR`. Use `EDMPecondSRV2` instead.
+- `physicsnemo.models.diffusion.preconditioning.EDMPrecondSR`. Use `EDMPecondSRV2` instead.
 
 ### Removed
 
@@ -180,7 +343,7 @@ intended for distributed message-passing.
 weather models
 - Added distributed FFT utility.
 - Added ruff as a linting tool.
-- Ported utilities from Modulus Launch to main package.
+- Ported utilities from PhysicsNeMo Launch to main package.
 - EDM diffusion models and recipes for training and sampling.
 - NGC model registry download integration into package/filesystem.
 - Denoising diffusion tutorial.
@@ -188,12 +351,12 @@ weather models
 ### Changed
 
 - The AFNO input argument `img_size` to `inp_shape`
-- Integrated the network architecture layers from Modulus-Sym.
+- Integrated the network architecture layers from PhysicsNeMo-Sym.
 - Updated the SFNO model, and the training and inference recipes.
 
 ### Fixed
 
-- Fixed modulus.Module `from_checkpoint` to work from custom model classes
+- Fixed physicsnemo.Module `from_checkpoint` to work from custom model classes
 
 ### Dependencies
 
@@ -216,11 +379,11 @@ weather models
 
 ### Changed
 
-- Updating file system cache location to modulus folder
+- Updating file system cache location to physicsnemo folder
 
 ### Fixed
 
-- Fixed modulus uninstall in CI docker image
+- Fixed physicsnemo uninstall in CI docker image
 
 ### Security
 
@@ -261,7 +424,7 @@ weather models
 ### Fixed
 
 - Fixed issue with torch-harmonics version locking
-- Fixed the Modulus editable install
+- Fixed the PhysicsNeMo editable install
 - Fixed AMP bug in static capture
 
 ### Security

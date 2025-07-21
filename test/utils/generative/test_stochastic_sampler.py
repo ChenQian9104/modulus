@@ -14,12 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Callable, Optional
 
+import pytest
 import torch
+from pytest_utils import import_or_fail
 from torch import Tensor
-
-from modulus.utils.generative import image_batching, image_fuse, stochastic_sampler
 
 
 # Mock network class
@@ -38,13 +38,20 @@ class MockNet:
         t: Tensor,
         class_labels: Optional[Tensor],
         global_index: Optional[Tensor] = None,
+        embedding_selector: Optional[Callable] = None,
     ) -> Tensor:
         # Mock behavior: return input tensor for testing purposes
         return x * 0.9
 
 
 # The test function for edm_sampler
-def test_stochastic_sampler():
+@import_or_fail("cftime")
+def test_stochastic_sampler(pytestconfig):
+
+    from physicsnemo.utils.diffusion import stochastic_sampler
+
+    torch._dynamo.reset()
+
     net = MockNet()
     latents = torch.randn(2, 3, 448, 448)  # Mock latents
     img_lr = torch.randn(2, 3, 112, 112)  # Mock low-res image
@@ -54,10 +61,7 @@ def test_stochastic_sampler():
         net=net,
         latents=latents,
         img_lr=img_lr,
-        img_shape=448,
-        patch_shape=448,
-        overlap_pix=4,
-        boundary_pix=2,
+        patching=None,
         mean_hr=None,
         num_steps=4,
         sigma_min=0.002,
@@ -77,10 +81,7 @@ def test_stochastic_sampler():
         net=net,
         latents=latents,
         img_lr=img_lr,
-        img_shape=448,
-        patch_shape=448,
-        overlap_pix=4,
-        boundary_pix=2,
+        patching=None,
         mean_hr=mean_hr,
         num_steps=2,
         sigma_min=0.002,
@@ -101,10 +102,7 @@ def test_stochastic_sampler():
         net=net,
         latents=latents,
         img_lr=img_lr,
-        img_shape=448,
-        patch_shape=448,
-        overlap_pix=4,
-        boundary_pix=2,
+        patching=None,
         mean_hr=None,
         num_steps=3,
         sigma_min=0.002,
@@ -121,180 +119,141 @@ def test_stochastic_sampler():
     ), "Churn output shape does not match expected shape"
 
 
-def test_image_fuse_basic():
-    # Basic test: No overlap, no boundary, one patch
-    batch_size = 1
-    img_shape_x = img_shape_y = 4
-    patch_shape_x = patch_shape_y = 4
-    overlap_pix = 0
-    boundary_pix = 0
+# The test function for edm_sampler with rectangular domain and patching
+@import_or_fail("cftime")
+@pytest.mark.parametrize("device", ["cuda:0", "cpu"])
+def test_stochastic_sampler_rectangle_patching(device, pytestconfig):
+    from physicsnemo.utils.diffusion import stochastic_sampler
+    from physicsnemo.utils.patching import GridPatching2D
 
-    input_tensor = torch.arange(1, 17).view(1, 1, 4, 4).cuda().float()
-    fused_image = image_fuse(
-        input_tensor,
-        img_shape_x,
-        img_shape_y,
-        patch_shape_x,
-        patch_shape_y,
-        batch_size,
-        overlap_pix,
-        boundary_pix,
+    torch._dynamo.reset()
+
+    net = MockNet()
+
+    img_shape_y, img_shape_x = 256, 64
+    patch_shape_y, patch_shape_x = 16, 10
+
+    latents = torch.randn(2, 3, img_shape_y, img_shape_x, device=device)  # Mock latents
+    img_lr = torch.randn(
+        2, 3, img_shape_y, img_shape_x, device=device
+    )  # Mock low-res image
+
+    # Test with patching
+    patching = GridPatching2D(
+        img_shape=(img_shape_y, img_shape_x),
+        patch_shape=(patch_shape_y, patch_shape_x),
+        overlap_pix=4,
+        boundary_pix=2,
     )
-    assert fused_image.shape == (batch_size, 1, img_shape_x, img_shape_y)
-    expected_output = input_tensor
-    assert torch.allclose(
-        fused_image, expected_output, atol=1e-5
-    ), "Output does not match expected output."
 
-
-def test_image_fuse_with_boundary():
-    # Test with boundary pixels
-    batch_size = 1
-    img_shape_x = img_shape_y = 4
-    patch_shape_x = patch_shape_y = 6
-    overlap_pix = 0
-    boundary_pix = 1
-
-    input_tensor = torch.ones(1, 1, 6, 6).cuda().float()  # All ones for easy validation
-    fused_image = image_fuse(
-        input_tensor,
-        img_shape_x,
-        img_shape_y,
-        patch_shape_x,
-        patch_shape_y,
-        batch_size,
-        overlap_pix,
-        boundary_pix,
+    # Test with mean_hr conditioning
+    mean_hr = torch.randn(2, 3, img_shape_y, img_shape_x, device=device)
+    result_mean_hr = stochastic_sampler(
+        net=net,
+        latents=latents,
+        img_lr=img_lr,
+        patching=patching,
+        mean_hr=mean_hr,
+        num_steps=2,
+        sigma_min=0.002,
+        sigma_max=800,
+        rho=7,
+        S_churn=0,
+        S_min=0,
+        S_max=float("inf"),
+        S_noise=1,
     )
-    assert fused_image.shape == (batch_size, 1, img_shape_x, img_shape_y)
-    expected_output = (
-        torch.ones(1, 1, 4, 4).cuda().float()
-    )  # Expected output is just the inner 4x4 part
-    assert torch.allclose(
-        fused_image, expected_output, atol=1e-5
-    ), "Output with boundary does not match expected output."
+
+    assert (
+        result_mean_hr.shape == latents.shape
+    ), "Mean HR conditioned output shape does not match expected shape"
 
 
-def test_image_fuse_with_multiple_batches():
-    # Test with multiple batches
-    batch_size = 2
-    img_shape_x = img_shape_y = 4
-    patch_shape_x = patch_shape_y = 4
-    overlap_pix = 0
-    boundary_pix = 0
+# Test that the stochastic sampler is differentiable with rectangular patching
+# (tests differentiation through the patching and fusing)
+@import_or_fail("cftime")
+@pytest.mark.parametrize("device", ["cuda:0", "cpu"])
+def test_stochastic_sampler_patching_differentiable(device, pytestconfig):
+    from physicsnemo.utils.diffusion import stochastic_sampler
+    from physicsnemo.utils.patching import GridPatching2D
 
-    input_tensor = (
-        torch.cat(
-            [
-                torch.arange(1, 17).view(1, 1, 4, 4),
-                torch.arange(17, 33).view(1, 1, 4, 4),
-            ]
-        )
-        .cuda()
-        .float()
+    torch._dynamo.reset()
+
+    # Mock network class
+    class MockNet:
+        def __init__(self, sigma_min=0.1, sigma_max=1000):
+            self.sigma_min = sigma_min
+            self.sigma_max = sigma_max
+
+        def round_sigma(self, t: Tensor) -> Tensor:
+            return t
+
+        def __call__(
+            self,
+            x: Tensor,
+            x_lr: Tensor,
+            t: Tensor,
+            class_labels: Optional[Tensor],
+            global_index: Optional[Tensor] = None,
+            embedding_selector: Optional[Callable] = None,
+        ) -> Tensor:
+            # Mock behavior: return input tensor for testing purposes
+            return x * 0.9 + x_lr[:, : x.shape[1], :, :] * 0.1
+
+    net = MockNet()
+
+    img_shape_y, img_shape_x = 256, 64
+    patch_shape_y, patch_shape_x = 16, 10
+
+    latents = torch.randn(2, 3, img_shape_y, img_shape_x, device=device)  # Mock latents
+    img_lr = torch.randn(
+        2, 3, img_shape_y, img_shape_x, device=device
+    )  # Mock low-res image
+
+    # Tensors with requires grad
+    a = torch.randn(1, requires_grad=True, device=device)
+    b = torch.randn(1, requires_grad=True, device=device)
+    c = torch.randn(1, requires_grad=True, device=device)
+    d = torch.randn(1, requires_grad=True, device=device)
+    e = torch.randn(1, requires_grad=True, device=device)
+    f = torch.randn(1, requires_grad=True, device=device)
+
+    # Test with patching
+    patching = GridPatching2D(
+        img_shape=(img_shape_y, img_shape_x),
+        patch_shape=(patch_shape_y, patch_shape_x),
+        overlap_pix=4,
+        boundary_pix=2,
     )
-    input_tensor = input_tensor.repeat(2, 1, 1, 1)
-    fused_image = image_fuse(
-        input_tensor,
-        img_shape_x,
-        img_shape_y,
-        patch_shape_x,
-        patch_shape_y,
-        batch_size,
-        overlap_pix,
-        boundary_pix,
+
+    # Test with mean_hr conditioning
+    mean_hr = torch.randn(2, 3, img_shape_y, img_shape_x, device=device)
+    result_mean_hr = stochastic_sampler(
+        net=net,
+        latents=a * latents + b,
+        img_lr=c * img_lr + d,
+        patching=patching,
+        mean_hr=e * mean_hr + f,
+        num_steps=2,
+        sigma_min=0.002,
+        sigma_max=800,
+        rho=7,
+        S_churn=0,
+        S_min=0,
+        S_max=float("inf"),
+        S_noise=1,
     )
-    assert fused_image.shape == (batch_size, 1, img_shape_x, img_shape_y)
-    expected_output = (
-        torch.cat(
-            [
-                torch.arange(1, 17).view(1, 1, 4, 4),
-                torch.arange(17, 33).view(1, 1, 4, 4),
-            ]
-        )
-        .cuda()
-        .float()
-    )
-    assert torch.allclose(
-        fused_image, expected_output, atol=1e-5
-    ), "Output for multiple batches does not match expected output."
 
+    assert (
+        result_mean_hr.shape == latents.shape
+    ), "Mean HR conditioned output shape does not match expected shape"
 
-def test_image_batching_basic():
-    # Test with no overlap, no boundary, no input_interp
-    batch_size = 1
-    img_shape_x = img_shape_y = 4
-    patch_shape_x = patch_shape_y = 4
-    overlap_pix = 0
-    boundary_pix = 0
+    loss = result_mean_hr.sum()
+    loss.backward()
 
-    input_tensor = torch.arange(1, 17).view(1, 1, 4, 4).cuda().float()
-    batched_images = image_batching(
-        input_tensor,
-        img_shape_x,
-        img_shape_y,
-        patch_shape_x,
-        patch_shape_y,
-        batch_size,
-        overlap_pix,
-        boundary_pix,
-    )
-    assert batched_images.shape == (batch_size, 1, patch_shape_x, patch_shape_y)
-    expected_output = input_tensor
-    assert torch.allclose(
-        batched_images, expected_output, atol=1e-5
-    ), "Batched images do not match expected output."
-
-
-def test_image_batching_with_boundary():
-    # Test with boundary pixels, no overlap, no input_interp
-    batch_size = 1
-    img_shape_x = img_shape_y = 4
-    patch_shape_x = patch_shape_y = 6
-    overlap_pix = 0
-    boundary_pix = 1
-
-    input_tensor = torch.ones(1, 1, 4, 4).cuda().float()  # All ones for easy validation
-    batched_images = image_batching(
-        input_tensor,
-        img_shape_x,
-        img_shape_y,
-        patch_shape_x,
-        patch_shape_y,
-        batch_size,
-        overlap_pix,
-        boundary_pix,
-    )
-    assert batched_images.shape == (1, 1, patch_shape_x, patch_shape_y)
-    expected_output = torch.ones(1, 1, 6, 6).cuda().float()
-    assert torch.allclose(
-        batched_images, expected_output, atol=1e-5
-    ), "Batched images with boundary do not match expected output."
-
-
-def test_image_batching_with_input_interp():
-    # Test with input_interp tensor
-    batch_size = 1
-    img_shape_x = img_shape_y = 4
-    patch_shape_x = patch_shape_y = 4
-    overlap_pix = 0
-    boundary_pix = 0
-
-    input_tensor = torch.arange(1, 17).view(1, 1, 4, 4).cuda().float()
-    input_interp = torch.ones(1, 1, 4, 4).cuda().float()  # All ones for easy validation
-    batched_images = image_batching(
-        input_tensor,
-        img_shape_x,
-        img_shape_y,
-        patch_shape_x,
-        patch_shape_y,
-        batch_size,
-        overlap_pix,
-        boundary_pix,
-        input_interp=input_interp,
-    )
-    assert batched_images.shape == (batch_size, 2, patch_shape_x, patch_shape_y)
-    expected_output = torch.cat((input_tensor, input_interp), dim=1)
-    assert torch.allclose(
-        batched_images, expected_output, atol=1e-5
-    ), "Batched images with input_interp do not match expected output."
+    assert a.grad is not None
+    assert b.grad is not None
+    assert c.grad is not None
+    assert d.grad is not None
+    assert e.grad is not None
+    assert f.grad is not None

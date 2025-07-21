@@ -2,12 +2,12 @@
 import torch
 from torch.nn.parallel import DistributedDataParallel
 
-import modulus
-from modulus.datapipes.benchmarks.darcy import Darcy2D
-from modulus.distributed import DistributedManager
-from modulus.metrics.general.mse import mse
-from modulus.models.fno.fno import FNO
-from modulus.utils import StaticCaptureTraining
+import physicsnemo
+from physicsnemo.datapipes.benchmarks.darcy import Darcy2D
+from physicsnemo.distributed import DistributedManager
+from physicsnemo.metrics.general.mse import mse
+from physicsnemo.models.fno.fno import FNO
+from physicsnemo.utils import StaticCaptureTraining
 
 # [imports]
 
@@ -77,11 +77,12 @@ def main():
         return loss
 
     # run for 20 iterations
+    dataloader = iter(dataloader)
     for i in range(20):
-        batch = next(iter(dataloader))
-        true = batch["darcy"]
+        batch = next(dataloader)
+        truth = batch["darcy"]
         input = batch["permeability"]
-        loss = training_step(input, true)
+        loss = training_step(input, truth)
         scheduler.step()
 
 
