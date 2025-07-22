@@ -30,8 +30,8 @@ regressor_iterations: 30000
 diffusion_steps: 1000
 model_path: ./
 generation_path: ./
-model_path_diffusion: /home/turbo/Qian/modulus/modulus/outputs/model_100000.pt
-model_path_classifier: /home/turbo/Qian/modulus/modulus/outputs/classifier.pt
+model_path_diffusion: /home/turbo/Qian/physicsnemo/physicsnemo/outputs/model_100000.pt
+model_path_classifier: /home/turbo/Qian/physicsnemo/physicsnemo/outputs/classifier.pt
 
 
 path_training_data_diffusion: /home/turbo/Qian/dataset_1_diff/training_data/

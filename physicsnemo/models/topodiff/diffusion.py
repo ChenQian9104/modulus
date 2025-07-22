@@ -20,6 +20,10 @@ import torch.nn.functional as F
 
 
 class Diffusion:
+    """
+    Diffusion model for TopoDiff.
+    """
+
     def __init__(self, n_steps=1000, min_beta=10**-4, max_beta=0.02, device="cpu"):
 
         self.n_steps = n_steps
@@ -41,6 +45,10 @@ class Diffusion:
 
     def q_sample(self, x0, t, noise=None):
 
+        """
+        Diffuse the input data.
+        """
+
         if noise is None:
             noise = torch.rand_like(x0).to(self.device)
 
@@ -55,9 +63,17 @@ class Diffusion:
 
     def p_sample(self, model, xt, t, cons):
 
+        """
+        Sample from the posterior distribution.
+        """
+
         return model(xt, cons, t)
 
     def train_loss(self, model, x0, cons):
+
+        """
+        Compute the training loss.
+        """
 
         b, c, w, h = x0.shape
         noise = torch.randn_like(x0).to(self.device)

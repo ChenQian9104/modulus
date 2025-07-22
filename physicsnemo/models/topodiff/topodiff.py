@@ -252,6 +252,10 @@ class TopoDiff(Module):
 
 
 class UNetEncoder(Module):
+    """
+    U-Net encoder for TopoDiff.
+    """
+
     def __init__(
         self,
         in_channels: int,

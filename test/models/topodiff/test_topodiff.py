@@ -37,7 +37,7 @@ import common
 def test_topodiff_forward(device):
     """Test topodiff forward pass"""
 
-    from modulus.models.topodiff import TopoDiff
+    from physicsnemo.models.topodiff import TopoDiff
 
     torch.manual_seed(0)
     # dgl.seed(0)
@@ -67,7 +67,7 @@ def test_topodiff_forward(device):
 def test_topodiff_constructor(device):
     """Test topodiff forward pass"""
 
-    from modulus.models.topodiff import TopoDiff
+    from physicsnemo.models.topodiff import TopoDiff
 
     torch.manual_seed(0)
     # dgl.seed(0)
