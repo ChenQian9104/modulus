@@ -28,7 +28,8 @@ from omegaconf import DictConfig
 
 from physicsnemo.models.topodiff import TopoDiff, Diffusion
 from physicsnemo.models.topodiff import UNetEncoder
-from physicsnemo.launch.logging import PythonLogger, initialize_wandb
+from physicsnemo.launch.logging import PythonLogger
+from physicsnemo.launch.logging.wandb import initialize_wandb
 from utils import load_data_topodiff, load_data
 
 
@@ -40,14 +41,14 @@ def main(cfg: DictConfig) -> None:
 
     topologies = np.random.randn(1800, 64, 64)
     vfs_stress_strain = load_data(
-        "/home/turbo/Qian/dataset_1_diff/test_data_level_1/",
+        cfg.path_test_data_diffusion,
         cfg.prefix_pf_file,
         ".npy",
         200,
         2000,
     )
     load_imgs = load_data(
-        "/home/turbo/Qian/dataset_1_diff/test_data_level_1/",
+        cfg.path_test_data_diffusion,
         cfg.prefix_load_file,
         ".npy",
         200,

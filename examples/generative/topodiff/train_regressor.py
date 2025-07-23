@@ -29,7 +29,8 @@ from omegaconf import DictConfig
 
 from physicsnemo.models.topodiff import Diffusion
 from physicsnemo.models.topodiff import UNetEncoder
-from physicsnemo.launch.logging import PythonLogger, initialize_wandb
+from physicsnemo.launch.logging import PythonLogger
+from physicsnemo.launch.logging.wandb import initialize_wandb
 from utils import load_data_topodiff, load_data_regressor
 
 

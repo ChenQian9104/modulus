@@ -17,9 +17,6 @@
 from .diffusion import Diffusion
 from .topodiff import TopoDiff, UNetEncoder
 from .utils import (
-    DiffusionDataset_topodiff,
-    load_data,
-    load_data_classifier,
-    load_data_regressor,
+    DatasetTopoDiff,
     load_data_topodiff,
 )
