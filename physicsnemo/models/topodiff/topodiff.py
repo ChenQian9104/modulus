@@ -100,14 +100,6 @@ class TopoDiff(Module):
     -----
     Equivalent to the original implementation by Dhariwal and Nichol, available at
     https://github.com/openai/guided-diffusion
-
-    Example:
-    --------
-    >>> model = DhariwalUNet(img_resolution=16, in_channels=2, out_channels=2)
-    >>> noise_labels = torch.randn([1])
-    >>> class_labels = torch.randint(0, 1, (1, 1))
-    >>> input_image = torch.ones([1, 2, 16, 16])
-    >>> output_image = model(input_image, noise_labels, class_labels)
     """
 
     def __init__(
